@@ -52,14 +52,14 @@
     createBranch: (name) =>
       request('/branches', { method: 'POST', body: JSON.stringify({ name }) }),
     updateBranch: (id, name) =>
-      request('/branches/' + id, { method: 'PATCH', body: JSON.stringify({ name }) }),
+      request('/branches/' + id + '?id=' + id, { method: 'PATCH', body: JSON.stringify({ name }) }),
     deleteBranch: (id) =>
-      request('/branches/' + id, { method: 'DELETE' }),
+      request('/branches/' + id + '?id=' + id, { method: 'DELETE' }),
     getUsers: () => request('/users'),
     createUser: (payload) =>
       request('/users', { method: 'POST', body: JSON.stringify(payload) }),
     updateUser: (id, payload) =>
-      request('/users/' + id, { method: 'PATCH', body: JSON.stringify(payload) }),
+      request('/users/' + id + '?id=' + id, { method: 'PATCH', body: JSON.stringify(payload) }),
     getJobs: (params = {}) => {
       const qs = new URLSearchParams();
       if (params.branch_id != null) qs.set('branch_id', params.branch_id);
@@ -70,10 +70,10 @@
     createJob: (payload) =>
       request('/jobs', { method: 'POST', body: JSON.stringify(payload) }),
     claimJob: (id, notes) =>
-      request('/jobs/' + id + '/claim', { method: 'POST', body: JSON.stringify({ notes }) }),
+      request('/jobs/' + id + '/claim?id=' + id, { method: 'POST', body: JSON.stringify({ notes }) }),
     finishJob: (id, after_notes) =>
-      request('/jobs/' + id + '/finish', { method: 'POST', body: JSON.stringify({ after_notes }) }),
+      request('/jobs/' + id + '/finish?id=' + id, { method: 'POST', body: JSON.stringify({ after_notes }) }),
     reorderJob: (id, direction) =>
-      request('/jobs/' + id + '/reorder', { method: 'POST', body: JSON.stringify({ direction }) }),
+      request('/jobs/' + id + '/reorder?id=' + id, { method: 'POST', body: JSON.stringify({ direction }) }),
   };
 })();

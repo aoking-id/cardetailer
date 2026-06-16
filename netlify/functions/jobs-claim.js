@@ -1,6 +1,7 @@
 const { getDb } = require('./_lib/db');
 const { requireAuth } = require('./_lib/auth');
 const { loadUserById, userCanAccessBranch } = require('./_lib/users');
+const { getRouteId } = require('./_lib/route-id');
 const {
   handleOptions,
   parseBody,
@@ -53,8 +54,8 @@ exports.handler = async (event) => {
       return forbidden('Only detailers can start a clean');
     }
 
-    const jobId = Number(event.queryStringParameters?.id);
-    if (!jobId) return badRequest('Job id required');
+    const jobId = getRouteId(event, 'jobs');
+    if (!Number.isFinite(jobId) || jobId <= 0) return badRequest('Job id required');
 
     const body = parseBody(event);
     const notes = body.notes ? String(body.notes).trim() || null : null;

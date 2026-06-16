@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { getDb } = require('./_lib/db');
 const { requireAuth } = require('./_lib/auth');
 const { loadUserById, setUserBranches } = require('./_lib/users');
+const { getRouteId } = require('./_lib/route-id');
 const {
   handleOptions,
   parseBody,
@@ -27,8 +28,8 @@ exports.handler = async (event) => {
     const caller = await loadUserById(auth.payload.sub);
     if (!caller || caller.role !== 'admin') return forbidden('Admin only');
 
-    const userId = Number(event.queryStringParameters?.id);
-    if (!userId) return badRequest('User id required');
+    const userId = getRouteId(event, 'users');
+    if (!Number.isFinite(userId) || userId <= 0) return badRequest('User id required');
 
     const target = await loadUserById(userId);
     if (!target) return notFound('User not found');

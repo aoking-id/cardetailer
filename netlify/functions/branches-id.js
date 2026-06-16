@@ -1,6 +1,7 @@
 const { getDb } = require('./_lib/db');
 const { requireAuth } = require('./_lib/auth');
 const { loadUserById } = require('./_lib/users');
+const { getRouteId } = require('./_lib/route-id');
 const {
   handleOptions,
   parseBody,
@@ -22,8 +23,8 @@ exports.handler = async (event) => {
     const caller = await loadUserById(auth.payload.sub);
     if (!caller || caller.role !== 'admin') return forbidden('Admin only');
 
-    const branchId = Number(event.queryStringParameters?.id);
-    if (!branchId) return badRequest('Branch id required');
+    const branchId = getRouteId(event, 'branches');
+    if (!Number.isFinite(branchId) || branchId <= 0) return badRequest('Branch id required');
 
     const sql = getDb();
 
