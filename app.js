@@ -196,9 +196,38 @@
     renderAll();
   }
 
-  // ===== Nav =====
+  // ===== Nav & Help =====
+  let lastView = 'washlist';
+
+  function showHelp() {
+    $('#screen-help').style.display = '';
+    $('#help-back').textContent = me ? 'Back to app' : 'Back to login';
+    if (me) {
+      $('#nav-dashboard').classList.remove('active');
+      $('#nav-washlist').classList.remove('active');
+      $('#nav-checkin').classList.remove('active');
+      $('#nav-admin').classList.remove('active');
+      $('#nav-help').classList.add('active');
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function hideHelp() {
+    $('#screen-help').style.display = 'none';
+    if (me) showView(lastView);
+    else $('#screen-auth').style.display = '';
+  }
+
+  $('#auth-help').addEventListener('click', () => {
+    $('#screen-auth').style.display = 'none';
+    showHelp();
+  });
+  $('#help-back').addEventListener('click', hideHelp);
+  $('#nav-help').addEventListener('click', showHelp);
+
   const viewDash = $('#view-dashboard'), viewWash = $('#view-washlist'), viewCheck = $('#view-checkin'), viewAdmin = $('#view-admin');
   function showView(name) {
+    lastView = name;
     viewDash.style.display  = name === 'dashboard' ? '' : 'none';
     viewWash.style.display  = name === 'washlist' ? '' : 'none';
     viewCheck.style.display = name === 'checkin' ? '' : 'none';
@@ -207,6 +236,7 @@
     $('#nav-washlist').classList.toggle('active', name === 'washlist');
     $('#nav-checkin').classList.toggle('active', name === 'checkin');
     $('#nav-admin').classList.toggle('active', name === 'admin');
+    $('#nav-help').classList.remove('active');
     if (name === 'dashboard') renderDashboard();
     if (name === 'admin') renderAdmin();
   }
@@ -275,8 +305,8 @@
   function checkinHeadHtml() {
     const branchHeader = showBranchCol() ? '<th>Branch</th>' : '';
     const user = currentUser();
-    const editHeader = user && (user.role === 'cs' || user.role === 'admin') ? '<th></th>' : '';
-    return '<tr>' + branchHeader + '<th>Rego</th><th>ACRISS</th><th>Fuel</th><th>Mileage</th><th>Check-in time</th><th>Logged by</th>' + editHeader + '</tr>';
+    const editHeader = user && (user.role === 'cs' || user.role === 'admin') ? '<th>Actions</th>' : '';
+    return '<tr>' + branchHeader + '<th>Rego</th><th>ACRISS</th><th>Fuel</th><th>Mileage</th><th>Check-in time</th><th>Logged by</th><th>Status</th>' + editHeader + '</tr>';
   }
 
   function isoToLocalInput(iso) {
@@ -333,6 +363,7 @@
       const priorityCell = '<td class="priority-col">' + (isHigh ? PRIORITY_STAR : '') + '</td>';
       const actionParts = [];
       if (isStaff) {
+        actionParts.push('<button class="secondary tiny edit-intake" type="button">Edit</button>');
         if (isHigh) {
           actionParts.push(
             '<button class="secondary tiny priority-toggle on" type="button" title="Clear priority" data-priority="normal">Clear</button>'
@@ -364,6 +395,7 @@
         + '</tr>';
     }).join('');
     body.querySelectorAll('.claim-btn').forEach((btn) => btn.addEventListener('click', (e) => openClaimRow(e.currentTarget.closest('tr'))));
+    body.querySelectorAll('.edit-intake').forEach((btn) => btn.addEventListener('click', (e) => openIntakeEdit(e.currentTarget.closest('tr'))));
     body.querySelectorAll('.priority-toggle').forEach((btn) => btn.addEventListener('click', (e) => togglePriority(e.currentTarget.closest('tr'), e.currentTarget.getAttribute('data-priority'))));
   }
 
@@ -457,8 +489,8 @@
       const ink = getUser(j.intake_by);
       const editCell = isStaff
         ? '<td>' + (j.status === 'awaiting_wash'
-          ? '<button class="secondary tiny edit-checkin" type="button">Edit</button>'
-          : '<span class="muted">—</span>') + '</td>'
+          ? '<button class="secondary tiny edit-intake" type="button">Edit</button>'
+          : '<span class="muted" title="Only editable while waiting to clean">—</span>') + '</td>'
         : '';
       return '<tr data-job-id="' + j.id + '">'
         + branchCell(j)
@@ -468,13 +500,21 @@
         + '<td>' + (j.mileage == null ? '—' : Number(j.mileage).toLocaleString()) + '</td>'
         + '<td>' + escapeHtml(fmtDate(j.returned_at)) + '</td>'
         + '<td>' + escapeHtml(ink ? (ink.full_name || ink.username) : '—') + '</td>'
+        + '<td>' + escapeHtml(intakeStatusLabel(j.status)) + '</td>'
         + editCell
         + '</tr>';
     }).join('');
-    body.querySelectorAll('.edit-checkin').forEach((btn) => btn.addEventListener('click', (e) => openCheckinEdit(e.currentTarget.closest('tr'))));
+    body.querySelectorAll('.edit-intake').forEach((btn) => btn.addEventListener('click', (e) => openIntakeEdit(e.currentTarget.closest('tr'))));
   }
 
-  function openCheckinEdit(row) {
+  function intakeStatusLabel(status) {
+    if (status === 'awaiting_wash') return 'Waiting to clean';
+    if (status === 'in_progress') return 'In progress';
+    if (status === 'done') return 'Completed';
+    return status || '—';
+  }
+
+  function openIntakeEdit(row) {
     if (row.nextElementSibling && row.nextElementSibling.classList.contains('checkin-edit-row')) return;
     const id = Number(row.getAttribute('data-job-id'));
     const j = jobs.find((x) => x.id === id);

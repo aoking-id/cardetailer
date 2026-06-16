@@ -121,6 +121,27 @@
   .inline-actions { display: flex; gap: 6px; flex-wrap: wrap; }
   body.is-loading { cursor: wait; }
   body.is-loading .refresh { opacity: 0.6; pointer-events: none; }
+
+  /* Help page */
+  #screen-help { min-height: 100vh; background: #f8fafc; }
+  #screen-help .help-topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #ffffff; border-bottom: 1px solid #e2e8f0; }
+  #screen-help .help-topbar h1 { font-size: 16px; margin: 0; color: #0f172a; flex: 1; }
+  .help-doc { max-width: 820px; padding-bottom: 40px; }
+  .help-doc .help-lead { font-size: 15px; line-height: 1.6; color: #334155; margin: 0 0 8px; }
+  .help-doc .help-site { font-size: 13px; margin: 0 0 24px; }
+  .help-doc .help-site a { color: #0284c7; }
+  .help-doc h2 { font-size: 18px; color: #0f172a; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+  .help-doc h2:first-of-type { margin-top: 0; }
+  .help-doc h3 { font-size: 15px; color: #0f172a; margin: 20px 0 8px; }
+  .help-doc p, .help-doc li { font-size: 14px; line-height: 1.65; color: #334155; }
+  .help-doc ol, .help-doc ul { margin: 8px 0 16px; padding-left: 1.4em; }
+  .help-doc li { margin-bottom: 6px; }
+  .help-doc li ul { margin-top: 6px; }
+  .help-doc table { margin: 12px 0 20px; font-size: 13px; }
+  .help-doc table th { font-size: 11px; }
+  .help-doc .help-tip { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 14px; margin: 12px 0; font-size: 13px; color: #0c4a6e; }
+  .help-doc .help-tip strong { color: #075985; }
+  .help-doc .help-divider { border: none; border-top: 1px solid #e2e8f0; margin: 28px 0; }
 </style>
 </head>
 <body>
@@ -144,6 +165,158 @@
     </form>
   </div>
   <p class="muted" style="text-align:center">Don't have an account? Ask your admin to create one.</p>
+  <p style="text-align:center; margin-top:12px"><button type="button" id="auth-help" class="secondary" style="width:auto">Help guide</button></p>
+</div>
+
+<div id="screen-help" style="display:none">
+  <header class="help-topbar">
+    <h1>Car Detailer — Help</h1>
+    <button type="button" id="help-back" class="secondary">Back</button>
+  </header>
+  <main class="container help-doc">
+
+    <div class="card" style="margin-top:20px">
+      <p class="help-lead">Multi-branch car wash job tracker for car rental returns. Customer Service checks vehicles in → cars join the wash queue → detailers clean them → completed jobs appear in history.</p>
+      <p class="help-site muted">Live site: <a href="https://pah-detailer.netlify.app" target="_blank" rel="noopener">pah-detailer.netlify.app</a></p>
+
+      <h2>How to use</h2>
+
+      <h3>Sign in</h3>
+      <ol>
+        <li>Open the app URL in your browser.</li>
+        <li>Enter your <strong>username</strong> and <strong>password</strong> (your admin creates accounts).</li>
+        <li>After login you land on the view for your role (admin → Dashboard, everyone else → Wash List).</li>
+      </ol>
+      <p>Use <strong>Refresh</strong> in the top bar to reload all data immediately. The app also auto-updates the wash queue every ~90 seconds without interrupting you while you type notes.</p>
+      <p>Use <strong>Sign out</strong> when you finish your shift.</p>
+
+      <h3>Roles at a glance</h3>
+      <table>
+        <thead><tr><th>Role</th><th>What they do</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Customer Service (CS)</strong></td><td>Check in returned cars, edit check-ins while waiting, mark priority</td></tr>
+          <tr><td><strong>Detailer</strong></td><td>Work the wash queue — start and finish cleans</td></tr>
+          <tr><td><strong>Admin</strong></td><td>Everything CS can do, plus dashboard, user/branch management</td></tr>
+        </tbody>
+      </table>
+      <p>You only see branches you are assigned to. Admin can switch to <strong>All branches</strong> in the branch dropdown.</p>
+
+      <hr class="help-divider" />
+
+      <h2>Customer Service — daily workflow</h2>
+
+      <h3>1. Check in a returned car</h3>
+      <ol>
+        <li>Go to <strong>Check-In</strong>.</li>
+        <li>Fill in the form:
+          <ul>
+            <li><strong>Rego</strong> (required)</li>
+            <li><strong>ACRISS group</strong> (optional, e.g. CDAR)</li>
+            <li><strong>Fuel</strong> (0–8 eighths, optional)</li>
+            <li><strong>Mileage</strong> (optional)</li>
+            <li><strong>Check-in time</strong> (defaults to now)</li>
+            <li><strong>Priority</strong> — tick if this car must be washed before normal queue items</li>
+          </ul>
+        </li>
+        <li>Click <strong>Check in</strong>.</li>
+      </ol>
+      <p>The car appears on <strong>Wash List → Wash queue</strong> for detailers at your branch.</p>
+
+      <h3>2. Edit a check-in</h3>
+      <p>You can fix mistakes <strong>before a detailer starts cleaning</strong>. You do <strong>not</strong> need to be the person who originally checked the car in — any CS or admin for that branch can edit.</p>
+      <p><strong>Where to edit:</strong></p>
+      <ul>
+        <li><strong>Wash List</strong> — click <strong>Edit</strong> on a row in the wash queue, or</li>
+        <li><strong>Check-In → Recent check-ins</strong> — click <strong>Edit</strong> in the Actions column</li>
+      </ul>
+      <p><strong>What you can change:</strong> rego, ACRISS, fuel, mileage, check-in time, priority.</p>
+      <p><strong>When Edit is not available:</strong></p>
+      <ul>
+        <li>Status is <strong>In progress</strong> or <strong>Completed</strong> (detailer already started)</li>
+        <li>You are logged in as a <strong>detailer</strong> (read-only for check-ins)</li>
+      </ul>
+
+      <h3>3. Mark or clear priority</h3>
+      <p>On <strong>Wash List</strong>, for cars still waiting:</p>
+      <ul>
+        <li>Click the <strong>star</strong> on a normal row to mark priority (jumps to top of queue).</li>
+        <li>Click <strong>Clear</strong> on a priority row to return it to the normal queue.</li>
+      </ul>
+      <p>Priority cars show a star in the first column and a light amber row background. Detailers see the star but cannot change priority.</p>
+
+      <hr class="help-divider" />
+
+      <h2>Detailer — daily workflow</h2>
+      <p>Detailers use <strong>Wash List</strong> only (larger buttons on tablet-friendly layout).</p>
+
+      <h3>1. Pick the next car</h3>
+      <p>Open <strong>Wash List → Wash queue</strong>. Work <strong>top to bottom</strong>:</p>
+      <ul>
+        <li><strong>Priority</strong> cars (star) are always above normal cars.</li>
+        <li>Within each group, oldest wait time is first.</li>
+      </ul>
+
+      <h3>2. Start a clean</h3>
+      <ol>
+        <li>Click <strong>Start clean</strong> on your branch’s next car.</li>
+        <li>Add optional <strong>initial notes</strong> (damage, stains, etc.).</li>
+        <li>Click <strong>Start clean</strong> again to confirm.</li>
+      </ol>
+      <p>The car moves to <strong>In progress</strong>.</p>
+
+      <h3>3. Finish a clean</h3>
+      <ol>
+        <li>In <strong>In progress</strong>, find your job (only your rows show <strong>Finish</strong>).</li>
+        <li>Click <strong>Finish</strong>.</li>
+        <li>Add optional <strong>after-clean notes</strong>.</li>
+        <li>Click <strong>Confirm finish</strong>.</li>
+      </ol>
+      <p>The job moves to <strong>Completed history</strong>.</p>
+      <div class="help-tip"><strong>Tip:</strong> Auto-refresh pauses while a notes row is open or you are typing, so your notes won’t be wiped.</div>
+
+      <hr class="help-divider" />
+
+      <h2>Admin — extra features</h2>
+
+      <h3>Dashboard</h3>
+      <p>KPIs for check-ins today, queue length, in-progress count, completions, and average wait/wash times. Charts show the last 7 days and per-branch snapshot.</p>
+
+      <h3>Admin panel</h3>
+      <ul>
+        <li><strong>Branches</strong> — add, rename, or delete (delete blocked if the branch has jobs).</li>
+        <li><strong>Users</strong> — create CS, detailer, or admin users; assign branches; reset password; activate/deactivate.</li>
+      </ul>
+      <p>After first deploy, change the default admin password under <strong>Admin → Users → Edit</strong>.</p>
+
+      <hr class="help-divider" />
+
+      <h2>Wash List — sections explained</h2>
+      <table>
+        <thead><tr><th>Section</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Wash queue</strong></td><td>Cars waiting to be cleaned</td></tr>
+          <tr><td><strong>In progress</strong></td><td>Cars currently being detailed</td></tr>
+          <tr><td><strong>Completed history</strong></td><td>Finished jobs — filter by rego, detailer, date range; Export CSV</td></tr>
+        </tbody>
+      </table>
+
+      <hr class="help-divider" />
+
+      <h2>Branch switcher</h2>
+      <p>If you belong to more than one branch, use the <strong>branch dropdown</strong> in the top bar to filter what you see. Admin’s <strong>All branches</strong> view shows every branch with a branch column in tables.</p>
+
+      <hr class="help-divider" />
+
+      <h2>Priority queue (simple rules)</h2>
+      <ol>
+        <li>Priority cars always sit <strong>above</strong> normal cars.</li>
+        <li>Mark priority at check-in (checkbox) or later (star on wash queue).</li>
+        <li>Clearing priority sends the car to the <strong>back of the normal queue</strong>.</li>
+        <li>Order within priority vs normal is automatic — no manual reordering.</li>
+      </ol>
+    </div>
+
+  </main>
 </div>
 
 <div id="screen-app" style="display:none">
@@ -153,6 +326,7 @@
       <button id="nav-dashboard" type="button" style="display:none">Dashboard</button>
       <button id="nav-washlist" class="active" type="button">Wash List</button>
       <button id="nav-checkin" type="button">Check-In</button>
+      <button id="nav-help" type="button">Help</button>
       <button id="nav-admin" type="button" style="display:none">Admin</button>
     </nav>
     <span class="spacer"></span>
