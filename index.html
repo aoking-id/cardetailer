@@ -79,6 +79,9 @@
   .badge.inactive { background: #f1f5f9; color: #64748b; }
   .badge.role { background: #e0f2fe; color: #0369a1; }
   .badge.role.admin { background: #fef3c7; color: #92400e; }
+  .badge.priority { background: #fef08a; color: #854d0e; }
+  tr.priority-row td { background: #fffbeb; }
+  button.priority-toggle.on { color: #d97706; }
   .branch-chip { display: inline-block; background: #ecfeff; color: #155e75; padding: 2px 8px; border-radius: 999px; font-size: 11px; margin: 1px 2px; }
 
   .muted { color: #64748b; font-size: 13px; }
@@ -272,7 +275,12 @@
           </div>
           <div class="row cols-2" style="margin-top:10px">
             <div><label>Check-in time</label><input id="i-time" type="datetime-local" /></div>
-            <div style="display:flex; align-items:flex-end"><button class="primary" type="submit">Check in</button></div>
+            <div style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap">
+              <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; white-space:nowrap">
+                <input id="i-priority" type="checkbox" style="width:auto" /> High priority
+              </label>
+              <button class="primary" type="submit">Check in</button>
+            </div>
           </div>
           <div id="intake-error" class="error"></div>
           <div id="intake-success" class="success-msg"></div>

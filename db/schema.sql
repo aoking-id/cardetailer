@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   started_at    TIMESTAMPTZ,
   finished_at   TIMESTAMPTZ,
   sort_order    INT,
+  priority      TEXT NOT NULL DEFAULT 'normal'
+                CHECK (priority IN ('high', 'normal')),
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

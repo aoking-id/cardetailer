@@ -6,6 +6,7 @@ const {
   allowedBranchIds,
   userCanAccessBranch,
 } = require('./_lib/users');
+const { mapJob } = require('./_lib/map-job');
 const {
   handleOptions,
   parseBody,
@@ -15,28 +16,6 @@ const {
   created,
   serverError,
 } = require('./_lib/response');
-
-function mapJob(row) {
-  return {
-    id: row.id,
-    rego: row.rego,
-    branch_id: row.branch_id,
-    acriss_group: row.acriss_group,
-    fuel_eighths: row.fuel_eighths,
-    mileage: row.mileage,
-    service_type: row.service_type,
-    status: row.status,
-    intake_by: row.intake_by,
-    detailer_id: row.detailer_id,
-    notes: row.notes,
-    after_notes: row.after_notes,
-    returned_at: row.returned_at,
-    started_at: row.started_at,
-    finished_at: row.finished_at,
-    sort_order: row.sort_order,
-    created_at: row.created_at,
-  };
-}
 
 exports.handler = async (event) => {
   const options = handleOptions(event);
@@ -134,21 +113,35 @@ exports.handler = async (event) => {
         ? Number(body.mileage)
         : null;
       const returnedAt = body.returned_at || new Date().toISOString();
+      let priority = (body.priority || 'normal').toLowerCase();
+      if (priority !== 'high' && priority !== 'normal') {
+        return badRequest('priority must be "high" or "normal"');
+      }
 
-      const maxRows = await sql`
-        SELECT COALESCE(MAX(sort_order), 0)::int AS max_order
-        FROM jobs
-        WHERE branch_id = ${branchId} AND status = 'awaiting_wash'
-      `;
-      const sortOrder = maxRows[0].max_order + 1;
+      let sortOrder;
+      if (priority === 'high') {
+        const minRows = await sql`
+          SELECT MIN(sort_order) AS min_order FROM jobs
+          WHERE branch_id = ${branchId} AND status = 'awaiting_wash' AND priority = 'high'
+        `;
+        const minOrder = minRows[0].min_order;
+        sortOrder = minOrder != null ? minOrder - 1 : 0;
+      } else {
+        const maxRows = await sql`
+          SELECT COALESCE(MAX(sort_order), 0)::int AS max_order
+          FROM jobs
+          WHERE branch_id = ${branchId} AND status = 'awaiting_wash' AND priority = 'normal'
+        `;
+        sortOrder = maxRows[0].max_order + 1;
+      }
 
       const rows = await sql`
         INSERT INTO jobs (
           rego, branch_id, acriss_group, fuel_eighths, mileage,
-          intake_by, returned_at, status, sort_order
+          intake_by, returned_at, status, sort_order, priority
         ) VALUES (
           ${rego}, ${branchId}, ${acriss}, ${fuel}, ${mileage},
-          ${caller.id}, ${returnedAt}, 'awaiting_wash', ${sortOrder}
+          ${caller.id}, ${returnedAt}, 'awaiting_wash', ${sortOrder}, ${priority}
         )
         RETURNING *
       `;

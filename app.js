@@ -88,6 +88,12 @@
     }
   }
 
+  async function loadJobsOnly() {
+    const jobRes = await api.getJobs();
+    jobs = jobRes.jobs || [];
+    mergeUsers(jobRes.users || []);
+  }
+
   async function refreshAll() {
     try {
       await loadAllData();
@@ -229,11 +235,12 @@
     const mileage = mileageRaw === '' ? null : Number(mileageRaw);
     const timeRaw = $('#i-time').value;
     const returned_at = timeRaw ? new Date(timeRaw).toISOString() : new Date().toISOString();
+    const priority = $('#i-priority').checked ? 'high' : 'normal';
 
     try {
       await api.createJob({
         rego, branch_id: branchId, acriss_group: acriss,
-        fuel_eighths: fuel, mileage, returned_at,
+        fuel_eighths: fuel, mileage, returned_at, priority,
       });
       $('#intake-form').reset();
       const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
@@ -284,38 +291,61 @@
 
   const branchCell = (j) => showBranchCol() ? '<td>' + escapeHtml(branchName(j.branch_id)) + '</td>' : '';
 
+  function priorityRank(j) {
+    return j.priority === 'high' ? 0 : 1;
+  }
+
   function washSortKey(j) {
     if (j.sort_order != null) return j.sort_order;
     return j.returned_at ? new Date(j.returned_at).getTime() / 1000 : 0;
   }
 
+  function washQueueSort(a, b) {
+    const pr = priorityRank(a) - priorityRank(b);
+    if (pr !== 0) return pr;
+    return washSortKey(a) - washSortKey(b);
+  }
+
   function renderWashQueue() {
     const body = $('#wash-body');
     const rows = branchScoped(jobs).filter(j => j.status === 'awaiting_wash')
-      .sort((a,b) => washSortKey(a) - washSortKey(b));
+      .sort(washQueueSort);
     $('#wash-count').textContent = '(' + rows.length + ')';
     if (!rows.length) { body.innerHTML = '<tr><td colspan="99" class="muted">Wash queue is empty.</td></tr>'; return; }
     const user = currentUser();
     const isDet = user && user.role === 'detailer';
     const isAdm = user && user.role === 'admin';
+    const isStaff = user && (user.role === 'admin' || user.role === 'cs');
     body.innerHTML = rows.map((j, idx) => {
       const intake = getUser(j.intake_by);
       const intakeLabel = escapeHtml(intake ? (intake.full_name || intake.username) : '—');
       const detCanClaim = isDet && user.branch_ids && user.branch_ids.includes(j.branch_id);
-      let action;
-      if (isAdm) {
-        const upDisabled  = idx === 0 ? 'disabled' : '';
-        const dnDisabled  = idx === rows.length - 1 ? 'disabled' : '';
-        action = '<div class="inline-actions">'
-          + '<button class="secondary tiny move-up" type="button" title="Move up" ' + upDisabled + '>&uarr;</button>'
-          + '<button class="secondary tiny move-dn" type="button" title="Move down" ' + dnDisabled + '>&darr;</button>'
-          + '</div>';
-      } else if (detCanClaim) {
-        action = '<button class="success claim-btn" type="button">Start clean</button>';
-      } else {
-        action = '<span class="muted">—</span>';
+      const isHigh = j.priority === 'high';
+      const priorityBadge = isHigh ? ' <span class="badge priority">Priority</span>' : '';
+      const actionParts = [];
+      if (isStaff) {
+        actionParts.push(
+          '<button class="secondary tiny priority-toggle' + (isHigh ? ' on' : '') + '" type="button" title="Toggle priority" data-priority="' + (isHigh ? 'normal' : 'high') + '">' + (isHigh ? '★' : '☆') + '</button>'
+        );
       }
-      return '<tr data-job-id="' + j.id + '">'
+      if (isAdm) {
+        const prev = rows[idx - 1];
+        const next = rows[idx + 1];
+        const upDisabled = idx === 0 || (prev && prev.priority !== j.priority) ? 'disabled' : '';
+        const dnDisabled = idx === rows.length - 1 || (next && next.priority !== j.priority) ? 'disabled' : '';
+        actionParts.push(
+          '<button class="secondary tiny move-up" type="button" title="Move up" ' + upDisabled + '>&uarr;</button>'
+          + '<button class="secondary tiny move-dn" type="button" title="Move down" ' + dnDisabled + '>&darr;</button>'
+        );
+      } else if (detCanClaim) {
+        actionParts.push('<button class="success claim-btn" type="button">Start clean</button>');
+      } else if (!isStaff) {
+        actionParts.push('<span class="muted">—</span>');
+      }
+      const action = actionParts.length
+        ? '<div class="inline-actions">' + actionParts.join('') + '</div>'
+        : '<span class="muted">—</span>';
+      return '<tr data-job-id="' + j.id + '"' + (isHigh ? ' class="priority-row"' : '') + '>'
         + branchCell(j)
         + '<td><strong>' + escapeHtml(j.rego) + '</strong></td>'
         + '<td>' + escapeHtml(j.acriss_group || '—') + '</td>'
@@ -323,12 +353,24 @@
         + '<td>' + durationMins(j.returned_at) + '</td>'
         + '<td>' + intakeLabel + '</td>'
         + '<td>' + action + '</td>'
-        + '<td>' + statusBadge(j.status) + '</td>'
+        + '<td>' + statusBadge(j.status) + priorityBadge + '</td>'
         + '</tr>';
     }).join('');
     body.querySelectorAll('.claim-btn').forEach((btn) => btn.addEventListener('click', (e) => openClaimRow(e.currentTarget.closest('tr'))));
     body.querySelectorAll('.move-up').forEach((btn) => btn.addEventListener('click', (e) => moveJob(e.currentTarget.closest('tr'), -1)));
     body.querySelectorAll('.move-dn').forEach((btn) => btn.addEventListener('click', (e) => moveJob(e.currentTarget.closest('tr'),  1)));
+    body.querySelectorAll('.priority-toggle').forEach((btn) => btn.addEventListener('click', (e) => togglePriority(e.currentTarget.closest('tr'), e.currentTarget.getAttribute('data-priority'))));
+  }
+
+  async function togglePriority(row, priority) {
+    const id = Number(row.getAttribute('data-job-id'));
+    try {
+      await api.setJobPriority(id, priority);
+      await refreshAll();
+    } catch (ex) {
+      loadError = ex.message || 'Priority update failed';
+      setLoading(false);
+    }
   }
 
   async function moveJob(row, direction) {
@@ -480,7 +522,30 @@
     });
   }
 
-  setInterval(() => { if (me && !loading) refreshAll(); }, 30000);
+  const AUTO_REFRESH_MS = 90000;
+
+  function shouldPauseAutoRefresh() {
+    if (document.hidden) return true;
+    if (document.querySelector('.claim-row, .finish-row')) return true;
+    const el = document.activeElement;
+    if (el && el.matches('input, textarea, select')) return true;
+    return false;
+  }
+
+  async function refreshLive() {
+    if (!me || loading) return;
+    if (shouldPauseAutoRefresh()) return;
+    try {
+      await loadJobsOnly();
+      renderWashQueue();
+      renderInProgress();
+      if (viewDash.style.display !== 'none') renderDashboardKpis();
+    } catch {
+      // background tick — leave current data on screen
+    }
+  }
+
+  setInterval(refreshLive, AUTO_REFRESH_MS);
 
   // ===== Filters / CSVs / seed =====
   $('#filter-form').addEventListener('submit', (e) => { e.preventDefault(); renderCompleted(); });
@@ -538,7 +603,7 @@
     return a.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
   }
 
-  function renderDashboard() {
+  function renderDashboardKpis() {
     const scoped = branchScoped(jobs);
 
     const todayCheckins = scoped.filter(j => isToday(j.returned_at)).length;
@@ -549,7 +614,7 @@
     $('#kpi-checkin').textContent = todayCheckins;
     $('#kpi-checkin-sub').textContent = scoped.length + ' total in scope';
     $('#kpi-waiting').textContent = waiting;
-    const oldestWait = [...scoped.filter(j => j.status === 'awaiting_wash')].sort((a,b)=>(a.returned_at||'').localeCompare(b.returned_at||''))[0];
+    const oldestWait = [...scoped.filter(j => j.status === 'awaiting_wash')].sort(washQueueSort)[0];
     $('#kpi-waiting-sub').textContent = waiting && oldestWait ? 'oldest: ' + durationMins(oldestWait.returned_at) : '';
     $('#kpi-inprog').textContent = inProg;
     const longestIp = [...scoped.filter(j => j.status === 'in_progress')].sort((a,b)=>(a.started_at||'').localeCompare(b.started_at||''))[0];
@@ -569,7 +634,10 @@
       const avgWash = todayDone.reduce((acc,j) => acc + (new Date(j.finished_at) - new Date(j.started_at)) / 60000, 0) / todayDone.length;
       $('#kpi-avgwash').textContent = fmtMinutes(avgWash);
     } else $('#kpi-avgwash').textContent = '—';
+  }
 
+  function renderDashboardCharts() {
+    const scoped = branchScoped(jobs);
     const labels = []; const checkinsByDay = []; const completionsByDay = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(); d.setDate(d.getDate() - i);
@@ -609,6 +677,11 @@
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } },
                  scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } }
     });
+  }
+
+  function renderDashboard() {
+    renderDashboardKpis();
+    renderDashboardCharts();
   }
 
   // ===== ADMIN management =====
