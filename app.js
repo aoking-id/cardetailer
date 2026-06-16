@@ -314,30 +314,20 @@
     if (!rows.length) { body.innerHTML = '<tr><td colspan="99" class="muted">Wash queue is empty.</td></tr>'; return; }
     const user = currentUser();
     const isDet = user && user.role === 'detailer';
-    const isAdm = user && user.role === 'admin';
     const isStaff = user && (user.role === 'admin' || user.role === 'cs');
-    body.innerHTML = rows.map((j, idx) => {
+    body.innerHTML = rows.map((j) => {
       const intake = getUser(j.intake_by);
       const intakeLabel = escapeHtml(intake ? (intake.full_name || intake.username) : '—');
       const detCanClaim = isDet && user.branch_ids && user.branch_ids.includes(j.branch_id);
       const isHigh = j.priority === 'high';
-      const priorityBadge = isHigh ? ' <span class="badge priority">Priority</span>' : '';
+      const urgentBadge = isHigh ? ' <span class="badge priority">Urgent</span>' : '';
       const actionParts = [];
       if (isStaff) {
         actionParts.push(
-          '<button class="secondary tiny priority-toggle' + (isHigh ? ' on' : '') + '" type="button" title="Toggle priority" data-priority="' + (isHigh ? 'normal' : 'high') + '">' + (isHigh ? '★' : '☆') + '</button>'
+          '<button class="secondary tiny priority-toggle' + (isHigh ? ' on' : '') + '" type="button" title="' + (isHigh ? 'Clear urgent' : 'Mark urgent') + '" data-priority="' + (isHigh ? 'normal' : 'high') + '">' + (isHigh ? '★' : '☆') + '</button>'
         );
       }
-      if (isAdm) {
-        const prev = rows[idx - 1];
-        const next = rows[idx + 1];
-        const upDisabled = idx === 0 || (prev && prev.priority !== j.priority) ? 'disabled' : '';
-        const dnDisabled = idx === rows.length - 1 || (next && next.priority !== j.priority) ? 'disabled' : '';
-        actionParts.push(
-          '<button class="secondary tiny move-up" type="button" title="Move up" ' + upDisabled + '>&uarr;</button>'
-          + '<button class="secondary tiny move-dn" type="button" title="Move down" ' + dnDisabled + '>&darr;</button>'
-        );
-      } else if (detCanClaim) {
+      if (detCanClaim) {
         actionParts.push('<button class="success claim-btn" type="button">Start clean</button>');
       } else if (!isStaff) {
         actionParts.push('<span class="muted">—</span>');
@@ -353,12 +343,10 @@
         + '<td>' + durationMins(j.returned_at) + '</td>'
         + '<td>' + intakeLabel + '</td>'
         + '<td>' + action + '</td>'
-        + '<td>' + statusBadge(j.status) + priorityBadge + '</td>'
+        + '<td>' + statusBadge(j.status) + urgentBadge + '</td>'
         + '</tr>';
     }).join('');
     body.querySelectorAll('.claim-btn').forEach((btn) => btn.addEventListener('click', (e) => openClaimRow(e.currentTarget.closest('tr'))));
-    body.querySelectorAll('.move-up').forEach((btn) => btn.addEventListener('click', (e) => moveJob(e.currentTarget.closest('tr'), -1)));
-    body.querySelectorAll('.move-dn').forEach((btn) => btn.addEventListener('click', (e) => moveJob(e.currentTarget.closest('tr'),  1)));
     body.querySelectorAll('.priority-toggle').forEach((btn) => btn.addEventListener('click', (e) => togglePriority(e.currentTarget.closest('tr'), e.currentTarget.getAttribute('data-priority'))));
   }
 
@@ -368,18 +356,7 @@
       await api.setJobPriority(id, priority);
       await refreshAll();
     } catch (ex) {
-      loadError = ex.message || 'Priority update failed';
-      setLoading(false);
-    }
-  }
-
-  async function moveJob(row, direction) {
-    const id = Number(row.getAttribute('data-job-id'));
-    try {
-      await api.reorderJob(id, direction < 0 ? 'up' : 'down');
-      await refreshAll();
-    } catch (ex) {
-      loadError = ex.message || 'Reorder failed';
+      loadError = ex.message || 'Could not update urgent flag';
       setLoading(false);
     }
   }

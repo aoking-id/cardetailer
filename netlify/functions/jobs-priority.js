@@ -54,8 +54,26 @@ exports.handler = async (event) => {
       return forbidden('You do not have access to this branch');
     }
 
+    let sortOrder;
+    if (priority === 'high') {
+      const minRows = await sql`
+        SELECT MIN(sort_order) AS min_order FROM jobs
+        WHERE branch_id = ${job.branch_id} AND status = 'awaiting_wash' AND priority = 'high'
+          AND id <> ${jobId}
+      `;
+      const minOrder = minRows[0].min_order;
+      sortOrder = minOrder != null ? minOrder - 1 : 0;
+    } else {
+      const maxRows = await sql`
+        SELECT COALESCE(MAX(sort_order), 0)::int AS max_order FROM jobs
+        WHERE branch_id = ${job.branch_id} AND status = 'awaiting_wash' AND priority = 'normal'
+          AND id <> ${jobId}
+      `;
+      sortOrder = maxRows[0].max_order + 1;
+    }
+
     const updated = await sql`
-      UPDATE jobs SET priority = ${priority}
+      UPDATE jobs SET priority = ${priority}, sort_order = ${sortOrder}
       WHERE id = ${jobId} AND status = 'awaiting_wash'
       RETURNING *
     `;
