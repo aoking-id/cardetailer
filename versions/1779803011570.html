@@ -1,0 +1,642 @@
+<!doctype html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Car Detailer Prototype",
+  "schemaVersion": 1,
+  "description": "Car detailer job tracker prototype with two roles (Customer Service and Detailer). CS logs vehicle returns (Rego, ACRISS, fuel/8, mileage, time) → wash list → detailer claims and cleans → finish with after-clean notes. History view with filters by Rego/detailer/intake/status/date range and CSV export. All data in localStorage for testing the workflow before deploying the real Netlify version."
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Car Detailer — Prototype</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; color: #1e293b; background: #f8fafc; }
+  .banner { background: #fef3c7; color: #92400e; padding: 8px 16px; text-align: center; font-size: 13px; border-bottom: 1px solid #fde68a; }
+  .banner strong { color: #78350f; }
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: #ffffff; border-bottom: 1px solid #e2e8f0; }
+  .topbar h1 { font-size: 16px; margin: 0; color: #0f172a; }
+  .topbar nav { display: flex; gap: 4px; margin-left: 12px; flex: 1; }
+  .topbar nav button { background: transparent; color: #64748b; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+  .topbar nav button:hover { background: #f1f5f9; }
+  .topbar nav button.active { background: #e0f2fe; color: #0369a1; }
+  .topbar .who { color: #64748b; font-size: 13px; }
+  .topbar .role-pill { background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .topbar .signout, .topbar .refresh { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .topbar .signout:hover, .topbar .refresh:hover { background: #e2e8f0; }
+
+  .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+  .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .card h2 { margin: 0 0 14px; font-size: 15px; color: #0f172a; }
+
+  label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; font-weight: 500; }
+  input, select, textarea { width: 100%; padding: 9px 11px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 7px; color: #0f172a; font-size: 14px; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.15); }
+  textarea { min-height: 60px; resize: vertical; }
+
+  .row { display: grid; gap: 10px; }
+  .row.cols-2 { grid-template-columns: 1fr 1fr; }
+  .row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .row.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 700px) { .row.cols-2, .row.cols-3, .row.cols-4 { grid-template-columns: 1fr; } }
+
+  button.primary { background: #0284c7; color: white; border: none; padding: 9px 16px; border-radius: 7px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  button.primary:hover { background: #0369a1; }
+  button.secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 9px 16px; border-radius: 7px; font-size: 14px; font-weight: 500; cursor: pointer; }
+  button.secondary:hover { background: #e2e8f0; }
+  button.success { background: #16a34a; color: white; border: none; padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  button.success:hover { background: #15803d; }
+  button.danger { background: #dc2626; color: white; border: none; padding: 7px 14px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px; vertical-align: top; }
+  th { color: #64748b; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; background: #f8fafc; }
+  tr:hover td { background: #f8fafc; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .badge.in-progress { background: #fef3c7; color: #92400e; }
+  .badge.done        { background: #d1fae5; color: #065f46; }
+  .badge.awaiting    { background: #e0f2fe; color: #0369a1; }
+
+  .muted { color: #64748b; font-size: 13px; }
+  .error { color: #dc2626; font-size: 13px; margin-top: 8px; min-height: 17px; }
+  .success-msg { color: #16a34a; font-size: 13px; margin-top: 8px; min-height: 17px; }
+
+  .auth-wrap { max-width: 380px; margin: 6vh auto; padding: 0 16px; }
+  .auth-wrap h1 { text-align: center; font-size: 22px; margin-bottom: 8px; color: #0f172a; }
+  .auth-wrap .sub { text-align: center; color: #64748b; font-size: 13px; margin-bottom: 20px; }
+  .tab-row { display: flex; gap: 6px; margin-bottom: 14px; }
+  .tab-row button { flex: 1; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; padding: 8px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 500; }
+  .tab-row button.active { background: #0284c7; color: white; border-color: #0284c7; }
+
+  .claim-row td, .finish-row td { background: #f0f9ff; }
+  .toolbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .scroll-x { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div class="banner">
+  <strong>Prototype</strong> — data is stored in this browser only (localStorage). Two roles: Customer Service and Detailer.
+</div>
+
+<div id="screen-auth" class="auth-wrap">
+  <h1>Car Detailer</h1>
+  <div class="sub">Sign in or create a local account to start</div>
+  <div class="tab-row">
+    <button id="tab-login" class="active" type="button">Sign in</button>
+    <button id="tab-register" type="button">Create account</button>
+  </div>
+  <div class="card">
+    <form id="login-form">
+      <div class="row">
+        <div><label>Username</label><input id="li-username" required autocomplete="username" /></div>
+        <div><label>Password</label><input id="li-password" type="password" required autocomplete="current-password" /></div>
+        <button class="primary" type="submit">Sign in</button>
+        <div id="login-error" class="error"></div>
+      </div>
+    </form>
+    <form id="register-form" style="display:none">
+      <div class="row">
+        <div><label>Full name</label><input id="r-fullname" /></div>
+        <div><label>Username</label><input id="r-username" required autocomplete="username" /></div>
+        <div><label>Password (min 4 — this is local!)</label><input id="r-password" type="password" required minlength="4" autocomplete="new-password" /></div>
+        <div>
+          <label>Role</label>
+          <select id="r-role" required>
+            <option value="">Select...</option>
+            <option value="cs">Customer Service (checks in vehicles)</option>
+            <option value="detailer">Detailer (cleans the cars)</option>
+          </select>
+        </div>
+        <button class="primary" type="submit">Create account</button>
+        <div id="register-error" class="error"></div>
+      </div>
+    </form>
+  </div>
+  <p class="muted" style="text-align:center">Tip: create one CS account and one Detailer account to see both views.</p>
+</div>
+
+<div id="screen-app" style="display:none">
+  <header class="topbar">
+    <h1>Car Detailer</h1>
+    <nav>
+      <button id="nav-washlist" class="active" type="button">Wash List</button>
+      <button id="nav-checkin" type="button">Check-In</button>
+    </nav>
+    <span class="who" id="who"></span>
+    <button id="refresh" class="refresh" type="button" title="Reload tables">Refresh</button>
+    <button id="signout" class="signout" type="button">Sign out</button>
+  </header>
+
+  <main class="container">
+
+    <!-- WASH LIST view: queue + in-progress + completed history -->
+    <section id="view-washlist">
+      <div class="card">
+        <h2>Wash queue <span class="muted" id="wash-count"></span></h2>
+        <div class="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                <th>Rego</th><th>ACRISS</th><th>Fuel</th><th>Mileage</th>
+                <th>Checked-in</th><th>Waiting</th><th>Logged by</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="wash-body"><tr><td colspan="8" class="muted">Wash queue is empty.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>In progress <span class="muted" id="ip-count"></span></h2>
+        <div class="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                <th>Rego</th><th>Detailer</th><th>Started</th>
+                <th>Elapsed</th><th>Notes</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="ip-body"><tr><td colspan="6" class="muted">No jobs in progress.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Completed history (moved out of separate tab) -->
+      <div class="card">
+        <h2>Completed history <span class="muted" id="done-count"></span></h2>
+        <form id="filter-form">
+          <div class="row cols-4">
+            <div><label>Rego</label>           <input id="f-rego"     autocomplete="off" /></div>
+            <div><label>Detailer username</label> <input id="f-detailer" autocomplete="off" /></div>
+            <div><label>From</label> <input id="f-from" type="date" /></div>
+            <div><label>To</label>   <input id="f-to"   type="date" /></div>
+          </div>
+          <div class="toolbar">
+            <button class="primary" type="submit">Filter</button>
+            <button id="clear-btn" type="button" class="secondary">Clear</button>
+            <button id="csv-btn"   type="button" class="secondary">Export CSV</button>
+            <button id="seed-btn"  type="button" class="secondary">Load sample data</button>
+            <button id="wipe-btn"  type="button" class="danger" style="margin-left:auto">Wipe all data</button>
+          </div>
+        </form>
+        <div class="scroll-x" style="margin-top:14px">
+          <table>
+            <thead>
+              <tr>
+                <th>Rego</th><th>ACRISS</th><th>Fuel</th><th>Mileage</th>
+                <th>Checked-in</th><th>Intake by</th><th>Detailer</th>
+                <th>Started</th><th>Finished</th><th>Duration</th>
+                <th>Notes</th><th>After</th>
+              </tr>
+            </thead>
+            <tbody id="done-body"><tr><td colspan="12" class="muted">No completed jobs.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHECK-IN view: form (CS only) + recent check-ins -->
+    <section id="view-checkin" style="display:none">
+      <div id="cs-form" class="card" style="display:none">
+        <h2>New check-in</h2>
+        <form id="intake-form">
+          <div class="row cols-4">
+            <div><label>Rego</label><input id="i-rego" required maxlength="20" autocomplete="off" style="text-transform:uppercase" /></div>
+            <div><label>ACRISS group</label><input id="i-acriss" maxlength="10" autocomplete="off" style="text-transform:uppercase" placeholder="e.g. CDAR" /></div>
+            <div>
+              <label>Fuel (out of 8)</label>
+              <select id="i-fuel">
+                <option value="">—</option>
+                <option>0</option><option>1</option><option>2</option><option>3</option>
+                <option>4</option><option>5</option><option>6</option><option>7</option><option>8</option>
+              </select>
+            </div>
+            <div><label>Mileage (km)</label><input id="i-mileage" type="number" min="0" /></div>
+          </div>
+          <div class="row cols-2" style="margin-top:10px">
+            <div><label>Check-in time</label><input id="i-time" type="datetime-local" /></div>
+            <div style="display:flex; align-items:flex-end"><button class="primary" type="submit">Check in</button></div>
+          </div>
+          <div id="intake-error" class="error"></div>
+          <div id="intake-success" class="success-msg"></div>
+        </form>
+      </div>
+
+      <div id="non-cs-note" class="card" style="display:none">
+        <p class="muted" style="margin:0">Only Customer Service users can check in vehicles. The list below shows every check-in.</p>
+      </div>
+
+      <div class="card">
+        <h2>Recent check-ins <span class="muted" id="checkin-count"></span></h2>
+        <div class="scroll-x">
+          <table>
+            <thead>
+              <tr>
+                <th>Rego</th><th>ACRISS</th><th>Fuel</th><th>Mileage</th>
+                <th>Check-in time</th><th>Logged by</th><th>Current status</th>
+              </tr>
+            </thead>
+            <tbody id="checkin-body"><tr><td colspan="7" class="muted">No check-ins yet.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<template id="claim-row-template">
+  <tr class="claim-row">
+    <td colspan="8">
+      <div class="row cols-2">
+        <div>
+          <label>Initial notes (optional)</label>
+          <textarea class="claim-notes" placeholder="anything you notice before you start"></textarea>
+        </div>
+        <div style="display:flex; gap:8px; align-items:flex-end">
+          <button class="success confirm-claim" type="button">Start clean</button>
+          <button class="secondary cancel-claim" type="button">Cancel</button>
+        </div>
+      </div>
+    </td>
+  </tr>
+</template>
+
+<template id="finish-row-template">
+  <tr class="finish-row">
+    <td colspan="6">
+      <div class="row cols-2">
+        <div>
+          <label>After-clean notes (optional)</label>
+          <textarea class="after-notes" placeholder="e.g. all areas clean, customer notified"></textarea>
+        </div>
+        <div style="display:flex; gap:8px; align-items:flex-end">
+          <button class="success confirm-finish" type="button">Confirm finish</button>
+          <button class="secondary cancel-finish" type="button">Cancel</button>
+        </div>
+      </div>
+    </td>
+  </tr>
+</template>
+
+<script>
+(() => {
+  const K_USERS = 'cd_proto_users_v2';
+  const K_JOBS  = 'cd_proto_jobs_v2';
+  const K_SESSION = 'cd_proto_session_v2';
+
+  const load = (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; } };
+  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+  let users = load(K_USERS, []);
+  let jobs  = load(K_JOBS, []);
+  let session = load(K_SESSION, null);
+
+  const nextId = (arr) => arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1;
+  const getUser = (id) => users.find(u => u.id === id) || null;
+  const currentUser = () => session ? getUser(session.user_id) : null;
+
+  const $ = (sel) => document.querySelector(sel);
+  const escapeHtml = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString() : '—';
+  const durationMins = (startIso, endIso) => {
+    if (!startIso) return '';
+    const start = new Date(startIso);
+    const end = endIso ? new Date(endIso) : new Date();
+    const mins = Math.max(0, Math.round((end - start) / 60000));
+    if (mins < 60) return mins + 'm';
+    return Math.floor(mins/60) + 'h ' + (mins % 60) + 'm';
+  };
+  const statusLabel = (s) => s === 'awaiting_wash' ? 'awaiting wash' : s.replace('_',' ');
+  const statusClass = (s) => s === 'done' ? 'done' : s === 'in_progress' ? 'in-progress' : 'awaiting';
+
+  // ===== Auth =====
+  const tabLogin = $('#tab-login'), tabReg = $('#tab-register');
+  const loginForm = $('#login-form'), regForm = $('#register-form');
+  tabLogin.addEventListener('click', () => { tabLogin.classList.add('active'); tabReg.classList.remove('active'); loginForm.style.display = ''; regForm.style.display = 'none'; });
+  tabReg.addEventListener('click', () => { tabReg.classList.add('active'); tabLogin.classList.remove('active'); regForm.style.display = ''; loginForm.style.display = 'none'; });
+
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const err = $('#login-error'); err.textContent = '';
+    const username = $('#li-username').value.toLowerCase().trim();
+    const password = $('#li-password').value;
+    const user = users.find(u => u.username === username);
+    if (!user || user.password !== password) { err.textContent = 'Invalid credentials'; return; }
+    session = { user_id: user.id }; save(K_SESSION, session);
+    enterApp();
+  });
+
+  regForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const err = $('#register-error'); err.textContent = '';
+    const username = $('#r-username').value.toLowerCase().trim();
+    const password = $('#r-password').value;
+    const full_name = $('#r-fullname').value.trim();
+    const role = $('#r-role').value;
+    if (!username || !password) { err.textContent = 'Username and password required'; return; }
+    if (password.length < 4) { err.textContent = 'Password too short'; return; }
+    if (!['cs','detailer'].includes(role)) { err.textContent = 'Select a role'; return; }
+    if (users.some(u => u.username === username)) { err.textContent = 'Username already taken'; return; }
+    const user = { id: nextId(users), username, password, full_name: full_name || null, role, created_at: new Date().toISOString() };
+    users.push(user); save(K_USERS, users);
+    session = { user_id: user.id }; save(K_SESSION, session);
+    enterApp();
+  });
+
+  $('#signout').addEventListener('click', () => { session = null; localStorage.removeItem(K_SESSION); location.reload(); });
+  $('#refresh').addEventListener('click', () => { renderAll(); });
+
+  function enterApp() {
+    const u = currentUser(); if (!u) return;
+    $('#screen-auth').style.display = 'none';
+    $('#screen-app').style.display = '';
+    $('#who').innerHTML = escapeHtml(u.full_name || u.username) + ' <span class="role-pill">' + u.role + '</span>';
+    if (u.role === 'cs') {
+      $('#cs-form').style.display = '';
+      $('#non-cs-note').style.display = 'none';
+      const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+      $('#i-time').value = nowLocal;
+    } else {
+      $('#cs-form').style.display = 'none';
+      $('#non-cs-note').style.display = '';
+    }
+    renderAll();
+  }
+
+  // ===== Nav =====
+  const viewWash = $('#view-washlist'), viewCheck = $('#view-checkin');
+  $('#nav-washlist').addEventListener('click', () => {
+    $('#nav-washlist').classList.add('active'); $('#nav-checkin').classList.remove('active');
+    viewWash.style.display = ''; viewCheck.style.display = 'none';
+    renderAll();
+  });
+  $('#nav-checkin').addEventListener('click', () => {
+    $('#nav-checkin').classList.add('active'); $('#nav-washlist').classList.remove('active');
+    viewCheck.style.display = ''; viewWash.style.display = 'none';
+    renderAll();
+  });
+
+  // ===== Check-in form =====
+  $('#intake-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const me = currentUser(); if (!me || me.role !== 'cs') return;
+    const err = $('#intake-error'); err.textContent = '';
+    const ok = $('#intake-success'); ok.textContent = '';
+    const rego = $('#i-rego').value.toUpperCase().trim();
+    if (!rego) { err.textContent = 'Rego required'; return; }
+    const acriss = ($('#i-acriss').value || '').toUpperCase().trim() || null;
+    const fuelRaw = $('#i-fuel').value;
+    const fuel = fuelRaw === '' ? null : Number(fuelRaw);
+    const mileageRaw = $('#i-mileage').value;
+    const mileage = mileageRaw === '' ? null : Number(mileageRaw);
+    const timeRaw = $('#i-time').value;
+    const returned_at = timeRaw ? new Date(timeRaw).toISOString() : new Date().toISOString();
+
+    jobs.push({
+      id: nextId(jobs), rego,
+      service_type: null,
+      acriss_group: acriss, fuel_eighths: fuel, mileage,
+      intake_by: me.id, returned_at,
+      notes: null, after_notes: null,
+      detailer_id: null, status: 'awaiting_wash',
+      started_at: null, finished_at: null,
+      created_at: new Date().toISOString(),
+    });
+    save(K_JOBS, jobs);
+    $('#intake-form').reset();
+    const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+    $('#i-time').value = nowLocal;
+    ok.textContent = 'Checked in. Added to wash queue.';
+    setTimeout(() => ok.textContent = '', 2500);
+    renderAll();
+  });
+
+  // ===== Render =====
+  function renderAll() {
+    renderWashQueue();
+    renderInProgress();
+    renderCompleted();
+    renderCheckins();
+  }
+
+  function renderWashQueue() {
+    const body = $('#wash-body');
+    const rows = jobs.filter(j => j.status === 'awaiting_wash').sort((a,b) => (a.returned_at||'').localeCompare(b.returned_at||''));
+    $('#wash-count').textContent = '(' + rows.length + ')';
+    if (!rows.length) { body.innerHTML = '<tr><td colspan="8" class="muted">Wash queue is empty.</td></tr>'; return; }
+    const me = currentUser(); const isDet = me && me.role === 'detailer';
+    body.innerHTML = rows.map((j) => {
+      const intake = getUser(j.intake_by);
+      const intakeLabel = escapeHtml(intake ? (intake.full_name || intake.username) : '—');
+      const action = isDet ? '<button class="success claim-btn" type="button">Start clean</button>' : '<span class="muted">—</span>';
+      return '<tr data-job-id="' + j.id + '">'
+        + '<td><strong>' + escapeHtml(j.rego) + '</strong></td>'
+        + '<td>' + escapeHtml(j.acriss_group || '—') + '</td>'
+        + '<td>' + (j.fuel_eighths == null ? '—' : j.fuel_eighths + '/8') + '</td>'
+        + '<td>' + (j.mileage == null ? '—' : Number(j.mileage).toLocaleString()) + '</td>'
+        + '<td>' + escapeHtml(fmtDate(j.returned_at)) + '</td>'
+        + '<td>' + durationMins(j.returned_at) + '</td>'
+        + '<td>' + intakeLabel + '</td>'
+        + '<td>' + action + '</td>'
+        + '</tr>';
+    }).join('');
+    body.querySelectorAll('.claim-btn').forEach((btn) => btn.addEventListener('click', (e) => openClaimRow(e.currentTarget.closest('tr'))));
+  }
+
+  function renderInProgress() {
+    const body = $('#ip-body');
+    const rows = jobs.filter(j => j.status === 'in_progress').sort((a,b) => (b.started_at||'').localeCompare(a.started_at||''));
+    $('#ip-count').textContent = '(' + rows.length + ')';
+    if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="muted">No jobs in progress.</td></tr>'; return; }
+    const me = currentUser(); const isDet = me && me.role === 'detailer';
+    body.innerHTML = rows.map((j) => {
+      const det = getUser(j.detailer_id);
+      const label = escapeHtml(det ? (det.full_name || det.username) : '—');
+      const action = isDet ? '<button class="success finish-btn" type="button">Finish</button>' : '<span class="muted">—</span>';
+      return '<tr data-job-id="' + j.id + '">'
+        + '<td><strong>' + escapeHtml(j.rego) + '</strong></td>'
+        + '<td>' + label + '</td>'
+        + '<td>' + escapeHtml(fmtDate(j.started_at)) + '</td>'
+        + '<td>' + durationMins(j.started_at) + '</td>'
+        + '<td>' + escapeHtml(j.notes || '') + '</td>'
+        + '<td>' + action + '</td>'
+        + '</tr>';
+    }).join('');
+    body.querySelectorAll('.finish-btn').forEach((btn) => btn.addEventListener('click', (e) => openFinishRow(e.currentTarget.closest('tr'))));
+  }
+
+  let completedRows = [];
+  function renderCompleted() {
+    const body = $('#done-body');
+    const rego = $('#f-rego').value.toUpperCase().trim();
+    const det  = $('#f-detailer').value.toLowerCase().trim();
+    const from = $('#f-from').value ? new Date($('#f-from').value) : null;
+    const to   = $('#f-to').value   ? new Date($('#f-to').value)   : null;
+    if (to) to.setDate(to.getDate() + 1);
+
+    let rows = jobs.filter(j => j.status === 'done').sort((a,b) => (b.finished_at||'').localeCompare(a.finished_at||''));
+    if (rego) rows = rows.filter(j => j.rego.includes(rego));
+    if (det)  rows = rows.filter(j => { const u = getUser(j.detailer_id); return u && u.username.includes(det); });
+    if (from) rows = rows.filter(j => new Date(j.finished_at || j.returned_at) >= from);
+    if (to)   rows = rows.filter(j => new Date(j.finished_at || j.returned_at) <  to);
+
+    completedRows = rows;
+    $('#done-count').textContent = '(' + rows.length + ')';
+    if (!rows.length) { body.innerHTML = '<tr><td colspan="12" class="muted">No completed jobs.</td></tr>'; return; }
+    body.innerHTML = rows.map(j => {
+      const det = getUser(j.detailer_id); const ink = getUser(j.intake_by);
+      return '<tr>'
+        + '<td><strong>' + escapeHtml(j.rego) + '</strong></td>'
+        + '<td>' + escapeHtml(j.acriss_group || '—') + '</td>'
+        + '<td>' + (j.fuel_eighths == null ? '—' : j.fuel_eighths + '/8') + '</td>'
+        + '<td>' + (j.mileage == null ? '—' : Number(j.mileage).toLocaleString()) + '</td>'
+        + '<td>' + escapeHtml(fmtDate(j.returned_at)) + '</td>'
+        + '<td>' + escapeHtml(ink ? (ink.full_name || ink.username) : '—') + '</td>'
+        + '<td>' + escapeHtml(det ? (det.full_name || det.username) : '—') + '</td>'
+        + '<td>' + escapeHtml(fmtDate(j.started_at)) + '</td>'
+        + '<td>' + escapeHtml(fmtDate(j.finished_at)) + '</td>'
+        + '<td>' + (j.finished_at ? durationMins(j.started_at, j.finished_at) : '—') + '</td>'
+        + '<td>' + escapeHtml(j.notes || '') + '</td>'
+        + '<td>' + escapeHtml(j.after_notes || '') + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function renderCheckins() {
+    const body = $('#checkin-body');
+    const rows = jobs.filter(j => j.intake_by != null).sort((a,b) => (b.returned_at||'').localeCompare(a.returned_at||''));
+    $('#checkin-count').textContent = '(' + rows.length + ')';
+    if (!rows.length) { body.innerHTML = '<tr><td colspan="7" class="muted">No check-ins yet.</td></tr>'; return; }
+    body.innerHTML = rows.map(j => {
+      const ink = getUser(j.intake_by);
+      return '<tr>'
+        + '<td><strong>' + escapeHtml(j.rego) + '</strong></td>'
+        + '<td>' + escapeHtml(j.acriss_group || '—') + '</td>'
+        + '<td>' + (j.fuel_eighths == null ? '—' : j.fuel_eighths + '/8') + '</td>'
+        + '<td>' + (j.mileage == null ? '—' : Number(j.mileage).toLocaleString()) + '</td>'
+        + '<td>' + escapeHtml(fmtDate(j.returned_at)) + '</td>'
+        + '<td>' + escapeHtml(ink ? (ink.full_name || ink.username) : '—') + '</td>'
+        + '<td><span class="badge ' + statusClass(j.status) + '">' + statusLabel(j.status) + '</span></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  // ===== Claim & Finish =====
+  function openClaimRow(row) {
+    if (row.nextElementSibling && row.nextElementSibling.classList.contains('claim-row')) return;
+    const frag = $('#claim-row-template').content.cloneNode(true);
+    row.parentNode.insertBefore(frag, row.nextSibling);
+    const tr = row.nextElementSibling;
+    tr.querySelector('.cancel-claim').addEventListener('click', () => tr.remove());
+    tr.querySelector('.confirm-claim').addEventListener('click', () => {
+      const id = Number(row.getAttribute('data-job-id'));
+      const notes = tr.querySelector('.claim-notes').value.trim() || null;
+      const job = jobs.find(j => j.id === id);
+      if (!job || job.status !== 'awaiting_wash') return;
+      const me = currentUser();
+      job.status = 'in_progress';
+      job.detailer_id = me.id;
+      job.service_type = 'Wash';
+      job.notes = notes;
+      job.started_at = new Date().toISOString();
+      save(K_JOBS, jobs);
+      renderAll();
+    });
+  }
+
+  function openFinishRow(row) {
+    if (row.nextElementSibling && row.nextElementSibling.classList.contains('finish-row')) return;
+    const frag = $('#finish-row-template').content.cloneNode(true);
+    row.parentNode.insertBefore(frag, row.nextSibling);
+    const tr = row.nextElementSibling;
+    tr.querySelector('.cancel-finish').addEventListener('click', () => tr.remove());
+    tr.querySelector('.confirm-finish').addEventListener('click', () => {
+      const id = Number(row.getAttribute('data-job-id'));
+      const after = tr.querySelector('.after-notes').value.trim() || null;
+      const job = jobs.find(j => j.id === id); if (!job) return;
+      job.status = 'done';
+      job.finished_at = new Date().toISOString();
+      job.after_notes = after;
+      save(K_JOBS, jobs);
+      renderAll();
+    });
+  }
+
+  // Auto refresh elapsed times.
+  setInterval(() => renderAll(), 30000);
+
+  // ===== Filters / CSV / seed / wipe =====
+  $('#filter-form').addEventListener('submit', (e) => { e.preventDefault(); renderCompleted(); });
+  $('#clear-btn').addEventListener('click', () => { $('#filter-form').reset(); renderCompleted(); });
+
+  $('#csv-btn').addEventListener('click', () => {
+    if (!completedRows.length) return;
+    const header = ['rego','acriss','fuel','mileage','check_in_time','intake_by','detailer','started_at','finished_at','duration_minutes','notes','after_notes'];
+    const rows = completedRows.map(j => {
+      const det = getUser(j.detailer_id); const ink = getUser(j.intake_by);
+      const dur = (j.started_at && j.finished_at) ? Math.round((new Date(j.finished_at) - new Date(j.started_at)) / 60000) : '';
+      return [j.rego, j.acriss_group||'', j.fuel_eighths==null?'':j.fuel_eighths, j.mileage==null?'':j.mileage, j.returned_at||'', ink?(ink.full_name||ink.username):'', det?(det.full_name||det.username):'', j.started_at||'', j.finished_at||'', dur, j.notes||'', j.after_notes||''];
+    });
+    const csvCell = (v) => { const s = String(v==null?'':v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    const csv = [header, ...rows].map(r => r.map(csvCell).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'car-detailer-completed-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+  });
+
+  $('#seed-btn').addEventListener('click', () => {
+    if (!confirm('Add sample data?')) return;
+    let cs = users.find(u => u.username === 'samplecs');
+    if (!cs) { cs = { id: nextId(users), username: 'samplecs', password: 'sample', full_name: 'Sample CS', role: 'cs', created_at: new Date().toISOString() }; users.push(cs); }
+    let det = users.find(u => u.username === 'sampledet');
+    if (!det) { det = { id: nextId(users), username: 'sampledet', password: 'sample', full_name: 'Sample Detailer', role: 'detailer', created_at: new Date().toISOString() }; users.push(det); }
+    save(K_USERS, users);
+
+    const now = Date.now();
+    const samples = [
+      { rego: 'ABC123', acriss: 'CDAR', fuel: 4, mileage: 45230, ago_returned: 3*24*60, claim_after: 15, mins: 95, notes: 'Dust everywhere',     after: 'Done, looks new',          status: 'done' },
+      { rego: 'XYZ789', acriss: 'EDMR', fuel: 2, mileage: 88102, ago_returned: 2*24*60, claim_after: 30, mins: 35, notes: '',                    after: 'Wheels need re-clean later', status: 'done' },
+      { rego: 'JKL456', acriss: 'IDMR', fuel: 6, mileage: 12345, ago_returned: 1*24*60, claim_after: 20, mins: 50, notes: 'Coffee stain on seat', after: 'Stain mostly out',         status: 'done' },
+      { rego: 'TST001', acriss: 'CDAR', fuel: 5, mileage: 23400, ago_returned: 90,      claim_after: 30, mins: null, notes: '',                  after: null,                         status: 'in_progress' },
+      { rego: 'NEW111', acriss: 'CDAR', fuel: 3, mileage: 9876,  ago_returned: 15,                                                                                                       status: 'awaiting_wash' },
+      { rego: 'NEW222', acriss: 'EDMR', fuel: 8, mileage: 5678,  ago_returned: 5,                                                                                                        status: 'awaiting_wash' },
+    ];
+    samples.forEach(s => {
+      const returned = new Date(now - s.ago_returned * 60000);
+      const started = (s.status !== 'awaiting_wash') ? new Date(returned.getTime() + (s.claim_after || 0) * 60000) : null;
+      const finished = (s.status === 'done') ? new Date(started.getTime() + (s.mins || 30) * 60000) : null;
+      jobs.push({
+        id: nextId(jobs),
+        rego: s.rego, acriss_group: s.acriss, fuel_eighths: s.fuel, mileage: s.mileage,
+        intake_by: cs.id, returned_at: returned.toISOString(),
+        service_type: (s.status === 'awaiting_wash') ? null : 'Wash',
+        notes: s.notes || null, after_notes: s.after || null,
+        detailer_id: (s.status === 'awaiting_wash') ? null : det.id,
+        status: s.status,
+        started_at: started ? started.toISOString() : null,
+        finished_at: finished ? finished.toISOString() : null,
+        created_at: returned.toISOString(),
+      });
+    });
+    save(K_JOBS, jobs);
+    renderAll();
+  });
+
+  $('#wipe-btn').addEventListener('click', () => {
+    if (!confirm('Wipe ALL data — users, jobs, session? This cannot be undone.')) return;
+    localStorage.removeItem(K_USERS); localStorage.removeItem(K_JOBS); localStorage.removeItem(K_SESSION);
+    location.reload();
+  });
+
+  if (currentUser()) enterApp();
+})();
+</script>
+</body>
+</html>
