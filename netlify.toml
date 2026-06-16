@@ -1,0 +1,53 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/me"
+  to = "/.netlify/functions/me"
+  status = 200
+
+[[redirects]]
+  from = "/api/branches"
+  to = "/.netlify/functions/branches"
+  status = 200
+
+[[redirects]]
+  from = "/api/branches/:id"
+  to = "/.netlify/functions/branches-id?id=:id"
+  status = 200
+
+[[redirects]]
+  from = "/api/users"
+  to = "/.netlify/functions/users"
+  status = 200
+
+[[redirects]]
+  from = "/api/users/:id"
+  to = "/.netlify/functions/users-id?id=:id"
+  status = 200
+
+[[redirects]]
+  from = "/api/jobs"
+  to = "/.netlify/functions/jobs"
+  status = 200
+
+[[redirects]]
+  from = "/api/jobs/:id/claim"
+  to = "/.netlify/functions/jobs-claim?id=:id"
+  status = 200
+
+[[redirects]]
+  from = "/api/jobs/:id/finish"
+  to = "/.netlify/functions/jobs-finish?id=:id"
+  status = 200
+
+[[redirects]]
+  from = "/api/jobs/:id/reorder"
+  to = "/.netlify/functions/jobs-reorder?id=:id"
+  status = 200
