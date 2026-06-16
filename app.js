@@ -306,6 +306,8 @@
     return washSortKey(a) - washSortKey(b);
   }
 
+  const PRIORITY_BADGE = '<img src="assets/priority-badge.png" alt="Priority" class="priority-badge" />';
+
   function renderWashQueue() {
     const body = $('#wash-body');
     const rows = branchScoped(jobs).filter(j => j.status === 'awaiting_wash')
@@ -320,12 +322,20 @@
       const intakeLabel = escapeHtml(intake ? (intake.full_name || intake.username) : '—');
       const detCanClaim = isDet && user.branch_ids && user.branch_ids.includes(j.branch_id);
       const isHigh = j.priority === 'high';
-      const urgentBadge = isHigh ? ' <span class="badge priority">Urgent</span>' : '';
+      const regoCell = isHigh
+        ? PRIORITY_BADGE + '<strong>' + escapeHtml(j.rego) + '</strong>'
+        : '<strong>' + escapeHtml(j.rego) + '</strong>';
       const actionParts = [];
       if (isStaff) {
-        actionParts.push(
-          '<button class="secondary tiny priority-toggle' + (isHigh ? ' on' : '') + '" type="button" title="' + (isHigh ? 'Clear urgent' : 'Mark urgent') + '" data-priority="' + (isHigh ? 'normal' : 'high') + '">' + (isHigh ? '★' : '☆') + '</button>'
-        );
+        if (isHigh) {
+          actionParts.push(
+            '<button class="secondary tiny priority-toggle on" type="button" title="Clear priority" data-priority="normal">Clear</button>'
+          );
+        } else {
+          actionParts.push(
+            '<button class="priority-toggle" type="button" title="Mark priority" data-priority="high">' + PRIORITY_BADGE + '</button>'
+          );
+        }
       }
       if (detCanClaim) {
         actionParts.push('<button class="success claim-btn" type="button">Start clean</button>');
@@ -337,13 +347,13 @@
         : '<span class="muted">—</span>';
       return '<tr data-job-id="' + j.id + '"' + (isHigh ? ' class="priority-row"' : '') + '>'
         + branchCell(j)
-        + '<td><strong>' + escapeHtml(j.rego) + '</strong></td>'
+        + '<td>' + regoCell + '</td>'
         + '<td>' + escapeHtml(j.acriss_group || '—') + '</td>'
         + '<td>' + escapeHtml(fmtDate(j.returned_at)) + '</td>'
         + '<td>' + durationMins(j.returned_at) + '</td>'
         + '<td>' + intakeLabel + '</td>'
         + '<td>' + action + '</td>'
-        + '<td>' + statusBadge(j.status) + urgentBadge + '</td>'
+        + '<td>' + statusBadge(j.status) + '</td>'
         + '</tr>';
     }).join('');
     body.querySelectorAll('.claim-btn').forEach((btn) => btn.addEventListener('click', (e) => openClaimRow(e.currentTarget.closest('tr'))));

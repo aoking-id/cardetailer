@@ -79,9 +79,13 @@
   .badge.inactive { background: #f1f5f9; color: #64748b; }
   .badge.role { background: #e0f2fe; color: #0369a1; }
   .badge.role.admin { background: #fef3c7; color: #92400e; }
-  .badge.priority { background: #fef08a; color: #854d0e; }
   tr.priority-row td { background: #fffbeb; }
-  button.priority-toggle.on { color: #d97706; }
+  img.priority-badge { height: 22px; width: auto; vertical-align: middle; display: inline-block; margin-right: 6px; }
+  button.priority-toggle { background: none; border: none; padding: 2px; cursor: pointer; opacity: 0.35; line-height: 0; vertical-align: middle; }
+  button.priority-toggle.on { opacity: 1; }
+  button.priority-toggle:hover { opacity: 0.65; }
+  button.priority-toggle.on:hover { opacity: 0.85; }
+  button.priority-toggle img { margin: 0; height: 20px; }
   .branch-chip { display: inline-block; background: #ecfeff; color: #155e75; padding: 2px 8px; border-radius: 999px; font-size: 11px; margin: 1px 2px; }
 
   .muted { color: #64748b; font-size: 13px; }
@@ -277,7 +281,9 @@
             <div><label>Check-in time</label><input id="i-time" type="datetime-local" /></div>
             <div style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap">
               <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; white-space:nowrap">
-                <input id="i-priority" type="checkbox" style="width:auto" /> Urgent
+                <input id="i-priority" type="checkbox" style="width:auto" />
+                <img src="assets/priority-badge.png" alt="" class="priority-badge" style="margin:0" />
+                Priority
               </label>
               <button class="primary" type="submit">Check in</button>
             </div>
