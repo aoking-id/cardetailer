@@ -80,12 +80,12 @@
   .badge.role { background: #e0f2fe; color: #0369a1; }
   .badge.role.admin { background: #fef3c7; color: #92400e; }
   tr.priority-row td { background: #fffbeb; }
-  img.priority-badge { height: 22px; width: auto; vertical-align: middle; display: inline-block; margin-right: 6px; }
-  button.priority-toggle { background: none; border: none; padding: 2px; cursor: pointer; opacity: 0.35; line-height: 0; vertical-align: middle; }
+  img.priority-star { height: 24px; width: 24px; vertical-align: middle; display: inline-block; image-rendering: pixelated; }
+  td.priority-col { width: 36px; text-align: center; }
+  button.priority-toggle { background: none; border: none; padding: 2px; cursor: pointer; opacity: 0.4; line-height: 0; vertical-align: middle; }
   button.priority-toggle.on { opacity: 1; }
-  button.priority-toggle:hover { opacity: 0.65; }
-  button.priority-toggle.on:hover { opacity: 0.85; }
-  button.priority-toggle img { margin: 0; height: 20px; }
+  button.priority-toggle:hover { opacity: 0.75; }
+  button.priority-toggle img { margin: 0; height: 22px; width: 22px; }
   .branch-chip { display: inline-block; background: #ecfeff; color: #155e75; padding: 2px 8px; border-radius: 999px; font-size: 11px; margin: 1px 2px; }
 
   .muted { color: #64748b; font-size: 13px; }
@@ -282,7 +282,7 @@
             <div style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap">
               <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer; white-space:nowrap">
                 <input id="i-priority" type="checkbox" style="width:auto" />
-                <img src="assets/priority-badge.png" alt="" class="priority-badge" style="margin:0" />
+                <img src="assets/priority-star.png" alt="" class="priority-star" />
                 Priority
               </label>
               <button class="primary" type="submit">Check in</button>
@@ -422,6 +422,34 @@
         <button class="primary save-user" type="button">Save</button>
         <button class="secondary cancel-user" type="button">Cancel</button>
         <div class="error save-error" style="margin-left:auto"></div>
+      </div>
+    </td>
+  </tr>
+</template>
+
+<template id="checkin-edit-template">
+  <tr class="checkin-edit-row">
+    <td colspan="99">
+      <div class="row cols-4">
+        <div><label>Rego</label><input class="edit-rego" required /></div>
+        <div><label>ACRISS</label><input class="edit-acriss" maxlength="4" /></div>
+        <div><label>Fuel /8</label><input class="edit-fuel" type="number" min="0" max="8" /></div>
+        <div><label>Mileage (km)</label><input class="edit-mileage" type="number" min="0" /></div>
+      </div>
+      <div class="row cols-2" style="margin-top:10px">
+        <div><label>Check-in time</label><input class="edit-time" type="datetime-local" /></div>
+        <div style="display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap">
+          <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer">
+            <input class="edit-priority" type="checkbox" style="width:auto" />
+            <img src="assets/priority-star.png" alt="" class="priority-star" />
+            Priority
+          </label>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:12px">
+        <button class="primary save-checkin" type="button">Save</button>
+        <button class="secondary cancel-checkin" type="button">Cancel</button>
+        <div class="error checkin-save-error" style="margin-left:auto"></div>
       </div>
     </td>
   </tr>

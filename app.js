@@ -262,7 +262,7 @@
   // ===== Render =====
   function washHeadHtml() {
     const branchHeader = showBranchCol() ? '<th>Branch</th>' : '';
-    return '<tr>' + branchHeader + '<th>Rego</th><th>ACRISS</th><th>Checked-in</th><th>Waiting</th><th>Logged by</th><th></th><th>Status</th></tr>';
+    return '<tr>' + branchHeader + '<th></th><th>Rego</th><th>ACRISS</th><th>Checked-in</th><th>Waiting</th><th>Logged by</th><th></th><th>Status</th></tr>';
   }
   function ipHeadHtml() {
     const branchHeader = showBranchCol() ? '<th>Branch</th>' : '';
@@ -274,7 +274,15 @@
   }
   function checkinHeadHtml() {
     const branchHeader = showBranchCol() ? '<th>Branch</th>' : '';
-    return '<tr>' + branchHeader + '<th>Rego</th><th>ACRISS</th><th>Fuel</th><th>Mileage</th><th>Check-in time</th><th>Logged by</th></tr>';
+    const user = currentUser();
+    const editHeader = user && (user.role === 'cs' || user.role === 'admin') ? '<th></th>' : '';
+    return '<tr>' + branchHeader + '<th>Rego</th><th>ACRISS</th><th>Fuel</th><th>Mileage</th><th>Check-in time</th><th>Logged by</th>' + editHeader + '</tr>';
+  }
+
+  function isoToLocalInput(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   }
 
   function renderAll() {
@@ -306,7 +314,7 @@
     return washSortKey(a) - washSortKey(b);
   }
 
-  const PRIORITY_BADGE = '<img src="assets/priority-badge.png" alt="Priority" class="priority-badge" />';
+  const PRIORITY_STAR = '<img src="assets/priority-star.png" alt="Priority" class="priority-star" />';
 
   function renderWashQueue() {
     const body = $('#wash-body');
@@ -322,9 +330,7 @@
       const intakeLabel = escapeHtml(intake ? (intake.full_name || intake.username) : '—');
       const detCanClaim = isDet && user.branch_ids && user.branch_ids.includes(j.branch_id);
       const isHigh = j.priority === 'high';
-      const regoCell = isHigh
-        ? PRIORITY_BADGE + '<strong>' + escapeHtml(j.rego) + '</strong>'
-        : '<strong>' + escapeHtml(j.rego) + '</strong>';
+      const priorityCell = '<td class="priority-col">' + (isHigh ? PRIORITY_STAR : '') + '</td>';
       const actionParts = [];
       if (isStaff) {
         if (isHigh) {
@@ -333,7 +339,7 @@
           );
         } else {
           actionParts.push(
-            '<button class="priority-toggle" type="button" title="Mark priority" data-priority="high">' + PRIORITY_BADGE + '</button>'
+            '<button class="priority-toggle" type="button" title="Mark priority" data-priority="high">' + PRIORITY_STAR + '</button>'
           );
         }
       }
@@ -347,7 +353,8 @@
         : '<span class="muted">—</span>';
       return '<tr data-job-id="' + j.id + '"' + (isHigh ? ' class="priority-row"' : '') + '>'
         + branchCell(j)
-        + '<td>' + regoCell + '</td>'
+        + priorityCell
+        + '<td><strong>' + escapeHtml(j.rego) + '</strong></td>'
         + '<td>' + escapeHtml(j.acriss_group || '—') + '</td>'
         + '<td>' + escapeHtml(fmtDate(j.returned_at)) + '</td>'
         + '<td>' + durationMins(j.returned_at) + '</td>'
@@ -443,10 +450,17 @@
       .sort((a,b) => (b.returned_at||'').localeCompare(a.returned_at||''));
     checkinRows = rows;
     $('#checkin-count').textContent = '(' + rows.length + ')';
+    const user = currentUser();
+    const isStaff = user && (user.role === 'cs' || user.role === 'admin');
     if (!rows.length) { body.innerHTML = '<tr><td colspan="99" class="muted">No check-ins yet.</td></tr>'; return; }
     body.innerHTML = rows.map(j => {
       const ink = getUser(j.intake_by);
-      return '<tr>'
+      const editCell = isStaff
+        ? '<td>' + (j.status === 'awaiting_wash'
+          ? '<button class="secondary tiny edit-checkin" type="button">Edit</button>'
+          : '<span class="muted">—</span>') + '</td>'
+        : '';
+      return '<tr data-job-id="' + j.id + '">'
         + branchCell(j)
         + '<td><strong>' + escapeHtml(j.rego) + '</strong></td>'
         + '<td>' + escapeHtml(j.acriss_group || '—') + '</td>'
@@ -454,8 +468,52 @@
         + '<td>' + (j.mileage == null ? '—' : Number(j.mileage).toLocaleString()) + '</td>'
         + '<td>' + escapeHtml(fmtDate(j.returned_at)) + '</td>'
         + '<td>' + escapeHtml(ink ? (ink.full_name || ink.username) : '—') + '</td>'
+        + editCell
         + '</tr>';
     }).join('');
+    body.querySelectorAll('.edit-checkin').forEach((btn) => btn.addEventListener('click', (e) => openCheckinEdit(e.currentTarget.closest('tr'))));
+  }
+
+  function openCheckinEdit(row) {
+    if (row.nextElementSibling && row.nextElementSibling.classList.contains('checkin-edit-row')) return;
+    const id = Number(row.getAttribute('data-job-id'));
+    const j = jobs.find((x) => x.id === id);
+    if (!j) return;
+    const frag = $('#checkin-edit-template').content.cloneNode(true);
+    row.parentNode.insertBefore(frag, row.nextSibling);
+    const tr = row.nextElementSibling;
+    tr.querySelector('.edit-rego').value = j.rego;
+    tr.querySelector('.edit-acriss').value = j.acriss_group || '';
+    tr.querySelector('.edit-fuel').value = j.fuel_eighths == null ? '' : j.fuel_eighths;
+    tr.querySelector('.edit-mileage').value = j.mileage == null ? '' : j.mileage;
+    tr.querySelector('.edit-time').value = isoToLocalInput(j.returned_at);
+    tr.querySelector('.edit-priority').checked = j.priority === 'high';
+    tr.querySelector('.cancel-checkin').addEventListener('click', () => tr.remove());
+    tr.querySelector('.save-checkin').addEventListener('click', async () => {
+      const errSlot = tr.querySelector('.checkin-save-error');
+      const btn = tr.querySelector('.save-checkin');
+      errSlot.textContent = '';
+      const rego = tr.querySelector('.edit-rego').value.toUpperCase().trim();
+      if (!rego) { errSlot.textContent = 'Rego required'; return; }
+      const acriss = (tr.querySelector('.edit-acriss').value || '').toUpperCase().trim() || null;
+      const fuelRaw = tr.querySelector('.edit-fuel').value;
+      const fuel = fuelRaw === '' ? null : Number(fuelRaw);
+      const mileageRaw = tr.querySelector('.edit-mileage').value;
+      const mileage = mileageRaw === '' ? null : Number(mileageRaw);
+      const timeRaw = tr.querySelector('.edit-time').value;
+      const returned_at = timeRaw ? new Date(timeRaw).toISOString() : j.returned_at;
+      const priority = tr.querySelector('.edit-priority').checked ? 'high' : 'normal';
+      btn.disabled = true;
+      try {
+        await api.updateJobIntake(id, {
+          rego, acriss_group: acriss, fuel_eighths: fuel, mileage, returned_at, priority,
+        });
+        await refreshAll();
+      } catch (ex) {
+        errSlot.textContent = ex.message || 'Save failed';
+        btn.disabled = false;
+      }
+    });
   }
 
   // ===== Claim & Finish =====
@@ -513,7 +571,7 @@
 
   function shouldPauseAutoRefresh() {
     if (document.hidden) return true;
-    if (document.querySelector('.claim-row, .finish-row')) return true;
+    if (document.querySelector('.claim-row, .finish-row, .checkin-edit-row')) return true;
     const el = document.activeElement;
     if (el && el.matches('input, textarea, select')) return true;
     return false;

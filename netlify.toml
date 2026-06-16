@@ -56,3 +56,8 @@
   from = "/api/jobs/:id/priority"
   to = "/.netlify/functions/jobs-priority?id=:id"
   status = 200
+
+[[redirects]]
+  from = "/api/jobs/:id/intake"
+  to = "/.netlify/functions/jobs-intake?id=:id"
+  status = 200

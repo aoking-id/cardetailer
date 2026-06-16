@@ -77,5 +77,7 @@
       request('/jobs/' + id + '/reorder?id=' + id, { method: 'POST', body: JSON.stringify({ direction }) }),
     setJobPriority: (id, priority) =>
       request('/jobs/' + id + '/priority?id=' + id, { method: 'POST', body: JSON.stringify({ priority }) }),
+    updateJobIntake: (id, payload) =>
+      request('/jobs/' + id + '/intake?id=' + id, { method: 'PATCH', body: JSON.stringify(payload) }),
   };
 })();
